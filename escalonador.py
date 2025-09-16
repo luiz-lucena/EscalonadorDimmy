@@ -7,33 +7,35 @@ from typing import Optional
 # Estruturas de dados
 # ----------------------
 
+# Classe que representa um processo
 class Processo:
     def __init__(self, pid: int, nome: str, prioridade: int, ciclos: int, recurso: Optional[str]):
-        self.id = int(pid)
-        self.nome = nome
+        self.id = int(pid) # identificador único
+        self.nome = nome # nome do processo
         self.prioridade = int(prioridade)  # 1-Alta,2-Média,3-Baixa
-        self.ciclos_necessarios = int(ciclos)
-        self.recurso_necessarios = recurso if recurso and recurso.strip() != '' else None
-        self.ja_solicitou_disco = False
+        self.ciclos_necessarios = int(ciclos) #ciclos restantes para terminar
+        self.recurso_necessarios = recurso if recurso and recurso.strip() != '' else None # recursos necessários
+        self.ja_solicitou_disco = False # flag para controlar primeiro acesso ao DISCO
 
     def __repr__(self):
         return f"P(id={self.id},nome={self.nome},pri={self.prioridade},ciclos={self.ciclos_necessarios},rec={self.recurso_necessarios})"
 
-
+# Nó da lista encadeada (cada nó guarda um processo)
 class Node:
     def __init__(self, processo: Processo):
         self.processo = processo
-        self.next = None
+        self.next = None # ponteiro para o próximo nó
 
-
+# Implementação da lista de processos (Encadeada)
 class ListaDeProcessos:
     def __init__(self, nome: str):
-        self.head = None
-        self.tail = None
-        self.size = 0
-        self.nome = nome
+        self.head = None # primeiro nó
+        self.tail = None # último nó
+        self.size = 0 # quantidade de elementos
+        self.nome = nome # nome da fila (Alta, Média, Baixa, Bloqueados)
 
     def append(self, processo: Processo):
+        # Adiciona um processo ao final da lista
         node = Node(processo)
         if self.tail is None:
             self.head = node
@@ -44,6 +46,7 @@ class ListaDeProcessos:
         self.size += 1
 
     def pop_front(self) -> Optional[Processo]:
+        # Remove e retorna o primeiro processo da lista
         if self.head is None:
             return None
         node = self.head
@@ -77,19 +80,21 @@ class ListaDeProcessos:
 
 
 # ----------------------
-# Escalonador
+# Escalonador (gerencia as listas de prioridades e bloqueados)
 # ----------------------
 class Scheduler:
     def __init__(self):
+        # filas de prioridades e bloqueados, uma lista para cada prioridade
         self.lista_alta = ListaDeProcessos("Alta")
         self.lista_media = ListaDeProcessos("Média")
         self.lista_baixa = ListaDeProcessos("Baixa")
-        self.lista_bloqueados = ListaDeProcessos("Bloqueados")
-        self.contador_ciclos_alta = 0
+        self.lista_bloqueados = ListaDeProcessos("Bloqueados") # lista de bloqueados
+        self.contador_ciclos_alta = 0 # usado para prevenção de inanição
         # logs
-        self.ciclo_atual = 0
+        self.ciclo_atual = 0 # contador de ciclos
 
     def carregar_processos_de_arquivo(self, path: str):
+        # Lê processos de um CSV e adiciona nas filas corretas
         if not os.path.exists(path):
             raise FileNotFoundError
         with open(path, "r", encoding="utf-8") as f:
@@ -115,6 +120,7 @@ class Scheduler:
                     self.lista_baixa.append(p)
 
     def filas_vazias(self):
+        # Retorna True se todas as filas estão vazias
         return (
             self.lista_alta.is_empty()
             and self.lista_media.is_empty()
@@ -147,7 +153,7 @@ class Scheduler:
         escolhido = None
         fonte = None  # "Alta","Média","Baixa"
 
-        # prevenção de inanição
+        # prevenção de inanição (depois de 5 execuções de alta, força média/baixa)
         if self.contador_ciclos_alta >= 5:
             escolhido = self.lista_media.pop_front()
             fonte = "Média"
@@ -158,7 +164,7 @@ class Scheduler:
                 print(f"[ciclo {self.ciclo_atual}] Regra anti-inanição aplicada. Selecionado da fila {fonte}: {escolhido.nome}(id={escolhido.id})")
                 self.contador_ciclos_alta = 0
 
-        # execução padrão
+        # execução padrão, se não tiver aplicado anti-starvation
         if escolhido is None:
             escolhido = self.lista_alta.pop_front()
             fonte = "Alta"
@@ -171,6 +177,7 @@ class Scheduler:
             if escolhido is not None:
                 print(f"[ciclo {self.ciclo_atual}] Selecionado da fila {fonte}: {escolhido.nome}(id={escolhido.id})")
 
+        # Se não há nenhum processo, fim da simulação
         if escolhido is None:
             print(f"[ciclo {self.ciclo_atual}] Nenhum processo disponível para executar.")
             return False  # nada a ser executado
